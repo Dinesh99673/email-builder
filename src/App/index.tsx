@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { Stack, useTheme } from '@mui/material';
 
@@ -23,10 +23,31 @@ export default function App() {
   const marginLeftTransition = useDrawerTransition('margin-left', samplesDrawerOpen);
   const marginRightTransition = useDrawerTransition('margin-right', inspectorDrawerOpen);
 
+  const [parentData, setParentData] = useState<any>(null);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.origin) return;
+  
+      console.log("Child received data:", event.data);
+      if(event.data.type === "INITIAL_DATA") {
+        setParentData(prev => {
+          // avoid re-setting same data
+          if (JSON.stringify(prev) === JSON.stringify(event.data)) return prev;
+          return event.data;
+        });
+      }
+    };
+  
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+  
+
   return (
     <>
       <InspectorDrawer />
-      <SamplesDrawer />
+      <SamplesDrawer userID={parentData?.userID} />
 
       <Stack
         sx={{
@@ -35,7 +56,7 @@ export default function App() {
           transition: [marginLeftTransition, marginRightTransition].join(', '),
         }}
       >
-        <TemplatePanel />
+        <TemplatePanel message={parentData} />
       </Stack>
     </>
   );

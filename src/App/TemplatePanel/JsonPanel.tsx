@@ -9,3 +9,7 @@ export default function JsonPanel() {
   const code = useMemo(() => JSON.stringify(document, null, '  '), [document]);
   return <HighlightedCodePanel type="json" value={code} />;
 }
+
+export function getJsonData() {
+  return JSON.stringify(document, null, '  ');
+}

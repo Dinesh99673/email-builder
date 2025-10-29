@@ -1,16 +1,85 @@
-import React from 'react';
+import { Box, Button, Divider, Drawer, Stack, Typography } from '@mui/material';
 
-import { Box, Button, Divider, Drawer, Link, Stack, Typography } from '@mui/material';
-
-import { useSamplesDrawerOpen } from '../../documents/editor/EditorContext';
+import { useSamplesDrawerOpen, resetDocument, setCurrentTemplateId } from '../../documents/editor/EditorContext';
+import { useCurrentTemplateId } from '../../documents/editor/EditorContext';
 
 import SidebarButton from './SidebarButton';
-import logo from './waypoint.svg';
+import { useEffect, useState } from 'react';
 
 export const SAMPLES_DRAWER_WIDTH = 240;
 
 export default function SamplesDrawer() {
   const samplesDrawerOpen = useSamplesDrawerOpen();
+  const [userEmailTemplates, setUserEmailTemplates] = useState<any[]>([]);
+  const currentTemplateId = useCurrentTemplateId();
+
+  const userId = "j0GX6FU8Slcou3Wf2fRP5Ix1zGZ2";
+
+  const fetchTemplates = () => {
+    if (userId) {
+      console.log('fetching templates for user', userId);
+      fetch(`http://localhost:5001/api/templates/email-builder/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('data', data);
+          console.log('data.templates', data.template);
+          if(data.template) {
+            setUserEmailTemplates(data.template);
+          } else {
+            setUserEmailTemplates([]);
+          }
+        })
+        .catch(err => {
+          console.log('err', err);
+        });
+    }
+  };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const handleTemplateClick = async (tpl: any) => {
+    console.log('tpl', tpl.name);
+    const parsedData = await JSON.parse(tpl.jsonData);
+    setCurrentTemplateId(tpl.id || null);
+    resetDocument(parsedData);
+  };
+
+  const handleCreateNewTemplate = async () => {
+    try {
+      const input = window.prompt('Enter a name for the new email template:', 'Untitled Template');
+      if (input === null) {
+        return;
+      }
+      const name = input.trim();
+      if (!name) {
+        alert('Please provide a valid name.');
+        return;
+      }
+
+      const newId = await (crypto as any).randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random()*16)|0, v = c === 'x' ? r : (r&0x3)|0x8;
+      return v.toString(16);
+      });
+      const res = await fetch('http://localhost:5001/api/email-builder/new-email-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailTemplateId: newId, userId, name }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to create template');
+      }
+      console.log({msg: 'newId', newId, res});
+
+      setCurrentTemplateId(newId);
+      resetDocument({} as any);
+      fetchTemplates();
+    } catch (err) {
+      console.log('Failed to create new template', err);
+    }
+  };
 
   return (
     <Drawer
@@ -24,9 +93,9 @@ export default function SamplesDrawer() {
       <Stack spacing={3} py={1} px={2} width={SAMPLES_DRAWER_WIDTH} justifyContent="space-between" height="100%">
         <Stack spacing={2} sx={{ '& .MuiButtonBase-root': { width: '100%', justifyContent: 'flex-start' } }}>
           <Typography variant="h6" component="h1" sx={{ p: 0.75 }}>
-            EmailBuilder.js
+            Email Builder
           </Typography>
-
+          <b>Sample Email Templates</b>
           <Stack alignItems="flex-start">
             <SidebarButton href="#">Empty</SidebarButton>
             <SidebarButton href="#sample/welcome">Welcome email</SidebarButton>
@@ -41,38 +110,52 @@ export default function SamplesDrawer() {
 
           <Divider />
 
-          <Stack>
-            <Button size="small" href="https://www.usewaypoint.com/open-source/emailbuilderjs" target="_blank">
-              Learn more
+          {/* User templates block */}
+          <Stack spacing={1.25} height="100%" alignItems="flex-start">
+            <b>Your Email Templates</b>
+            <Button size="small" variant="contained" color="primary" fullWidth onClick={handleCreateNewTemplate}>
+              Create new email template
             </Button>
-            <Button size="small" href="https://github.com/usewaypoint/email-builder-js" target="_blank">
-              View on GitHub
-            </Button>
+            <Box
+              sx={{
+                width: '100%',
+                overflowY: 'auto',
+                height: 'auto',
+                pr: 0.5,
+              }}
+            >
+              <Stack spacing={1} height="46vh">
+                {userEmailTemplates.map((tpl) => {
+                  const isSelected = tpl.id === currentTemplateId;
+                  return (
+                    <Box
+                      key={tpl.id}
+                      sx={{
+                        width: '100%',
+                        padding: '6px',
+                        cursor: isSelected ? 'default' : 'pointer',
+                        '&:hover': isSelected ? {} : { backgroundColor: 'rgba(0, 0, 0, 0.05)' },
+                        borderRadius: '4px',
+                        backgroundColor: isSelected ? 'grey.700' : 'transparent',
+                        color: isSelected ? 'common.white' : 'inherit',
+                        pointerEvents: isSelected ? 'none' : 'auto',
+                      }}
+                      onClick={() => { if (!isSelected) handleTemplateClick(tpl); }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {tpl.name}
+                      </Typography>
+                      <Typography variant="caption" color={isSelected ? 'common.white' : 'text.secondary'}>
+                        Created on {(new Date((tpl.created_at?.seconds || 0) * 1000).toLocaleString())}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Box>
           </Stack>
         </Stack>
-        <Stack spacing={2} px={0.75} py={3}>
-          <Link href="https://usewaypoint.com?utm_source=emailbuilderjs" target="_blank" sx={{ lineHeight: 1 }}>
-            <Box component="img" src={logo} width={32} />
-          </Link>
-          <Box>
-            <Typography variant="overline" gutterBottom>
-              Looking to send emails?
-            </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Waypoint is an end-to-end email API with a &apos;pro&apos; version of this template builder with dynamic
-              variables, loops, conditionals, drag and drop, layouts, and more.
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ justifyContent: 'center' }}
-            href="https://usewaypoint.com?utm_source=emailbuilderjs"
-            target="_blank"
-          >
-            Learn more
-          </Button>
-        </Stack>
+
       </Stack>
     </Drawer>
   );

@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { MonitorOutlined, PhoneIphoneOutlined, Save } from '@mui/icons-material';
 import { Box, IconButton, Stack, SxProps, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
 import { Reader } from '@usewaypoint/email-builder';
@@ -11,6 +9,7 @@ import {
   useSelectedMainTab,
   useSelectedScreenSize,
 } from '../../documents/editor/EditorContext';
+import { useCurrentTemplateId } from '../../documents/editor/EditorContext';
 import ToggleInspectorPanelButton from '../InspectorDrawer/ToggleInspectorPanelButton';
 import ToggleSamplesPanelButton from '../SamplesDrawer/ToggleSamplesPanelButton';
 
@@ -21,10 +20,11 @@ import JsonPanel from './JsonPanel';
 import MainTabsGroup from './MainTabsGroup';
 import ShareButton from './ShareButton';
 
-export default function TemplatePanel() {
+export default function TemplatePanel({ message }: { message: any }) {
   const document = useDocument();
   const selectedMainTab = useSelectedMainTab();
   const selectedScreenSize = useSelectedScreenSize();
+  const currentTemplateId = useCurrentTemplateId();
 
   let mainBoxSx: SxProps = {
     height: '100%',
@@ -72,6 +72,31 @@ export default function TemplatePanel() {
     }
   };
 
+  const saveTemplate = async () => {
+    try {
+      const payload = {
+        emailTemplateId: currentTemplateId,
+        jsonData: JSON.stringify(document),
+      };
+      const res = await fetch('http://localhost:5001/api/email-builder/save-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to save template');
+      }
+      const data = await res.json();
+      console.log('Saved template', data);
+      alert('Template saved successfully');
+      return data;
+    } catch (err) {
+      console.log({ err });
+      alert('Failed to save template');
+    }
+  };
+
   return (
     <>
       <Stack
@@ -96,22 +121,7 @@ export default function TemplatePanel() {
           </Stack>
           <Stack direction="row" spacing={2}>
             <Tooltip title="Save Template">
-            <IconButton onClick={() => {
-              fetch('http://localhost:5001/api/templates/email-builder/')
-              .then((res)=>{
-                console.log({res});                
-                return res.json();
-              })
-              .then((data)=>{
-                console.log({data});
-                alert(data);
-                return data;
-              })
-              .catch((err)=>{
-                console.log({err});
-                alert(err);
-              });
-            }}>
+              <IconButton onClick={saveTemplate}>
                 <Save fontSize="small" />
               </IconButton>
             </Tooltip>

@@ -14,6 +14,8 @@ type TValue = {
 
   inspectorDrawerOpen: boolean;
   samplesDrawerOpen: boolean;
+
+  currentTemplateId: string | null;
 };
 
 const editorStateStore = create<TValue>(() => ({
@@ -25,6 +27,8 @@ const editorStateStore = create<TValue>(() => ({
 
   inspectorDrawerOpen: true,
   samplesDrawerOpen: true,
+
+  currentTemplateId: null,
 }));
 
 export function useDocument() {
@@ -57,6 +61,14 @@ export function useInspectorDrawerOpen() {
 
 export function useSamplesDrawerOpen() {
   return editorStateStore((s) => s.samplesDrawerOpen);
+}
+
+export function useCurrentTemplateId() {
+  return editorStateStore((s) => s.currentTemplateId);
+}
+
+export function setCurrentTemplateId(currentTemplateId: string | null) {
+  return editorStateStore.setState({ currentTemplateId });
 }
 
 export function setSelectedBlockId(selectedBlockId: TValue['selectedBlockId']) {
